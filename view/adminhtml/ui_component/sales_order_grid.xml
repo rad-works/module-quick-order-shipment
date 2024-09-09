@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <listingToolbar name="listing_top">
+        <massaction name="listing_massaction">
+            <action name="rad_works_quick_force_shipment">
+                <settings>
+                    <confirm>
+                        <message translate="true">Are you sure you want to force the creation of shipments for the selected orders?</message>
+                        <title translate="true">Create shipments</title>
+                    </confirm>
+                    <url path="sales/order/forceShip"/>
+                    <type>rad_works_quick_force_shipment</type>
+                    <label translate="true">Force Quick Shipment</label>
+                </settings>
+            </action>
+        </massaction>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+</listing>
