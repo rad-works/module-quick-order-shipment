@@ -3,6 +3,6 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="RadWorks\QuickOrderShipment\Model\Inventory\SourceProviderInterface"
                 type="RadWorks\QuickOrderShipment\Model\Inventory\SourceProvider"/>
-    <preference for="RadWorks\QuickOrderShipment\Model\OrderManagementInterface"
-                type="RadWorks\QuickOrderShipment\Model\OrderManagement"/>
+    <preference for="RadWorks\QuickOrderShipment\Model\Order\ShipmentManagementInterface"
+                type="RadWorks\QuickOrderShipment\Model\Order\ShipmentManagement"/>
 </config>

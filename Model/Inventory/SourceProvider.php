@@ -8,7 +8,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\InventoryCatalogApi\Api\DefaultSourceProviderInterface;
 use Magento\InventorySalesApi\Model\GetSkuFromOrderItemInterface;
 use Magento\InventoryShippingAdminUi\Ui\DataProvider\GetSourcesByOrderIdSkuAndQty;
-use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Model\Order\Item;
 
 /**
  * Provides order items' inventory source selections by order
@@ -49,32 +49,34 @@ class SourceProvider implements SourceProviderInterface
     /**
      * Get all available inventory sources for order items
      *
-     * @param OrderInterface $order
+     * @param Item[] $orderItems
+     * @param array $constraints
      * @param bool $forceDefaultSource
      * @return array
      * @throws LocalizedException
      */
-    public function get(OrderInterface $order, bool $forceDefaultSource = true): array
+    public function get(array $orderItems, array $constraints = [], bool $forceDefaultSource = true): array
     {
         $result = [];
         $defaultSource = $this->defaultSourceProvider->getCode();
-        foreach ($order->getAllItems() as $orderItem) {
-            if ($orderItem->getIsVirtual() || $orderItem->getLockedDoShip() || $orderItem->getHasChildren()) {
+        foreach ($orderItems as $orderItem) {
+            $sku = $this->getSkuFromOrderItem->execute($orderItem);
+            $partialQty = $constraints[$sku] ?? null;
+            if ($partialQty && !array_key_exists($sku, $constraints)) {
                 continue;
             }
 
-            $item = $orderItem->isDummy(true) ? $orderItem->getParentItem() : $orderItem;
             $defaultSource = [
-                'qtyToDeduct' => (float)$item->getSimpleQtyToShip(),
-                'sku' => $this->getSkuFromOrderItem->execute($item),
-                'order_item_id' => $orderItem->getItemId(),
-                'sourceCode' => $defaultSource
+                self::DATA_FIELD_QTY => $partialQty ?: (float)$orderItem->getSimpleQtyToShip(),
+                self::DATA_FIELD_SKU => $sku,
+                self::DATA_FIELD_ITEM_ID => $orderItem->getItemId(),
+                self::DATA_FIELD_CODE => $defaultSource
             ];
             try {
                 $sources = $this->getSourcesByOrderIdSkuAndQty->execute(
-                    (int)$order->getEntityId(),
-                    sku: $defaultSource['sku'],
-                    qty: $defaultSource['qtyToDeduct']
+                    (int)$orderItem->getOrderId(),
+                    sku: $defaultSource[self::DATA_FIELD_SKU],
+                    qty: $defaultSource[self::DATA_FIELD_QTY]
                 );
             } catch (NoSuchEntityException $e) {
                 if (!$forceDefaultSource) {
@@ -85,8 +87,7 @@ class SourceProvider implements SourceProviderInterface
             }
 
             foreach ($sources as $source) {
-                $sourceCode = $source['sourceCode'];
-                $result[$sourceCode][] = array_merge($defaultSource, $source);
+                $result[$source[self::DATA_FIELD_CODE]][] = array_merge($defaultSource, $source);
             }
         }
 
