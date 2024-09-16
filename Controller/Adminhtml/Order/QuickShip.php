@@ -18,7 +18,7 @@ use RadWorks\QuickOrderShipment\Model\Order\ShipmentManagementInterface;
 /**
  * Force creation of shipments of the selected orders
  */
-class ForceShip extends Action implements HttpPostActionInterface
+class QuickShip extends Action implements HttpPostActionInterface
 {
     /**
      * Authorization level of a basic admin session
@@ -83,7 +83,7 @@ class ForceShip extends Action implements HttpPostActionInterface
             }
 
             try {
-                $this->shipmentManagement->shipOrder($order, skipInventorySourceDeduction: true);
+                $this->shipmentManagement->shipOrder($order, skipInventoryCheck: true);
                 $shipped[] = $incrementId;
             } catch (LocalizedException $e) {
                 $this->messageManager->addErrorMessage(

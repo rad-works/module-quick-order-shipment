@@ -51,14 +51,13 @@ class SourceProvider implements SourceProviderInterface
      *
      * @param Item[] $orderItems
      * @param array $constraints
-     * @param bool $forceDefaultSource
+     * @param bool $forceEmptySource
      * @return array
      * @throws LocalizedException
      */
-    public function get(array $orderItems, array $constraints = [], bool $forceDefaultSource = true): array
+    public function get(array $orderItems, array $constraints = [], bool $forceEmptySource = true): array
     {
         $result = [];
-        $defaultSource = $this->defaultSourceProvider->getCode();
         foreach ($orderItems as $orderItem) {
             $sku = $this->getSkuFromOrderItem->execute($orderItem);
             $partialQty = $constraints[$sku] ?? null;
@@ -66,11 +65,12 @@ class SourceProvider implements SourceProviderInterface
                 continue;
             }
 
+            $sources = [];
             $defaultSource = [
                 self::DATA_FIELD_QTY => $partialQty ?: (float)$orderItem->getSimpleQtyToShip(),
                 self::DATA_FIELD_SKU => $sku,
                 self::DATA_FIELD_ITEM_ID => $orderItem->getItemId(),
-                self::DATA_FIELD_CODE => $defaultSource
+                self::DATA_FIELD_CODE => self::NO_SOURCE_CODE
             ];
             try {
                 $sources = $this->getSourcesByOrderIdSkuAndQty->execute(
@@ -78,11 +78,14 @@ class SourceProvider implements SourceProviderInterface
                     sku: $defaultSource[self::DATA_FIELD_SKU],
                     qty: $defaultSource[self::DATA_FIELD_QTY]
                 );
+
             } catch (NoSuchEntityException $e) {
-                if (!$forceDefaultSource) {
+                if (!$forceEmptySource) {
                     throw $e;
                 }
+            }
 
+            if  (!$sources && $forceEmptySource) {
                 $sources = [$defaultSource];
             }
 

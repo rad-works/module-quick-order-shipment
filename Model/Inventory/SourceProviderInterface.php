@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace RadWorks\QuickOrderShipment\Model\Inventory;
 
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\Order\Item;
 
 /**
@@ -12,6 +11,8 @@ use Magento\Sales\Model\Order\Item;
  */
 interface SourceProviderInterface
 {
+    public const NO_SOURCE_CODE = 'no_source';
+
     /**
      * Sources' fields names
      */
@@ -25,9 +26,9 @@ interface SourceProviderInterface
      *
      * @param Item[] $orderItems
      * @param array $constraints
-     * @param bool $forceDefaultSource
+     * @param bool $forceEmptySource
      * @return array
      * @throws LocalizedException
      */
-    public function get(array $orderItems, array $constraints = [], bool $forceDefaultSource = true): array;
+    public function get(array $orderItems, array $constraints = [], bool $forceEmptySource = true): array;
 }

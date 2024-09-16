@@ -67,7 +67,7 @@ class ShipmentManagement implements ShipmentManagementInterface
      *
      * @var bool
      */
-    private bool $skipInventorySourceDeduction = false;
+    private bool $skipInventoryCheck = false;
 
     /**
      * @param ResourceConnection $connection
@@ -105,13 +105,13 @@ class ShipmentManagement implements ShipmentManagementInterface
      *
      * @param OrderInterface $order
      * @param array $constraints
-     * @param bool $skipInventorySourceDeduction
+     * @param bool $skipInventoryCheck
      * @return OrderInterface
      * @throws LocalizedException
      */
-    public function shipOrder(OrderInterface $order, array $constraints = [], bool $skipInventorySourceDeduction = true): OrderInterface
+    public function shipOrder(OrderInterface $order, array $constraints = [], bool $skipInventoryCheck = true): OrderInterface
     {
-        $this->skipInventorySourceDeduction = $skipInventorySourceDeduction;
+        $this->skipInventoryCheck = $skipInventoryCheck;
         if ($messages = $this->orderValidator->validate($order)) {
             throw new LocalizedException(
                 __('Order cannot be shipped: %1', implode(', ', $messages))
@@ -122,7 +122,7 @@ class ShipmentManagement implements ShipmentManagementInterface
             $this->inventorySourceProvider->get(
                 $this->getOrderItemsToShip($order),
                 $constraints,
-                $this->skipInventorySourceDeduction
+                $this->skipInventoryCheck
             )
         );
 
@@ -174,6 +174,7 @@ class ShipmentManagement implements ShipmentManagementInterface
                     ->setQty($source[SourceProviderInterface::DATA_FIELD_QTY]);
             }
         }
+
         return $result;
     }
 
@@ -196,13 +197,13 @@ class ShipmentManagement implements ShipmentManagementInterface
                 $shipmentCreationArguments->setExtensionAttributes(
                     $this->shipmentCreationArgumentsExtensionFactory->create()
                         ->setSourceCode($sourceCode)
-                        ->setSkipItemsDeduction($this->skipInventorySourceDeduction)
+                        ->setSkipItemsDeduction($this->skipInventoryCheck)
                 );
                 $this->shipOrder->execute($orderId, $items, arguments: $shipmentCreationArguments);
             }
 
             $connection->commit();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             $connection->rollBack();
             throw new CouldNotShipException(__('Could not save a shipment, see error log for details'));
         }

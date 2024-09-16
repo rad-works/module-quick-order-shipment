@@ -16,9 +16,9 @@ interface ShipmentManagementInterface
      *
      * @param OrderInterface $order
      * @param array $constraints
-     * @param bool $skipInventorySourceDeduction
+     * @param bool $skipInventoryCheck
      * @return OrderInterface
      * @throws LocalizedException
      */
-    public function shipOrder(OrderInterface $order, array $constraints = [], bool $skipInventorySourceDeduction = true): OrderInterface;
+    public function shipOrder(OrderInterface $order, array $constraints = [], bool $skipInventoryCheck = true): OrderInterface;
 }

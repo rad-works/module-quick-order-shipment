@@ -3,15 +3,15 @@
          xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
     <listingToolbar name="listing_top">
         <massaction name="listing_massaction">
-            <action name="rad_works_quick_force_shipment">
+            <action name="rad_works_quick_ship">
                 <settings>
                     <confirm>
-                        <message translate="true">Are you sure you want to force the creation of shipments for the selected orders?</message>
+                        <message translate="true">Are you sure you want to automatically create shipment(s) for the selected orders?</message>
                         <title translate="true">Create shipments</title>
                     </confirm>
-                    <url path="sales/order/forceShip"/>
-                    <type>rad_works_quick_force_shipment</type>
-                    <label translate="true">Force Quick Shipment</label>
+                    <url path="sales/order/quickShip"/>
+                    <type>quick_ship</type>
+                    <label translate="true">Quick Shipment</label>
                 </settings>
             </action>
         </massaction>

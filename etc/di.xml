@@ -5,4 +5,8 @@
                 type="RadWorks\QuickOrderShipment\Model\Inventory\SourceProvider"/>
     <preference for="RadWorks\QuickOrderShipment\Model\Order\ShipmentManagementInterface"
                 type="RadWorks\QuickOrderShipment\Model\Order\ShipmentManagement"/>
+    <type name="Magento\InventoryShipping\Model\GetItemsToDeductFromShipment">
+        <plugin name="RadWorks_QuickOrderShipment::skip_shipment_items_deduction_for_no_product"
+                type="RadWorks\QuickOrderShipment\Plugin\InventoryShipping\Model\GetItemsToDeductFromShipment\SkipShipmentItemsDeductionForNoProduct"/>
+    </type>
 </config>
