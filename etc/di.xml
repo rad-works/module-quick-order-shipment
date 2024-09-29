@@ -3,10 +3,10 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="RadWorks\QuickOrderShipment\Model\Inventory\SourceProviderInterface"
                 type="RadWorks\QuickOrderShipment\Model\Inventory\SourceProvider"/>
-    <preference for="RadWorks\QuickOrderShipment\Model\Order\ShipmentManagementInterface"
-                type="RadWorks\QuickOrderShipment\Model\Order\ShipmentManagement"/>
+    <preference for="RadWorks\QuickOrderShipment\Api\OrderShipmentBuilderInterface"
+                type="RadWorks\QuickOrderShipment\Model\Order\OrderShipmentBuilder"/>
     <type name="Magento\InventoryShipping\Model\GetItemsToDeductFromShipment">
-        <plugin name="RadWorks_QuickOrderShipment::skip_shipment_items_deduction_for_no_product"
-                type="RadWorks\QuickOrderShipment\Plugin\InventoryShipping\Model\GetItemsToDeductFromShipment\SkipShipmentItemsDeductionForNoProduct"/>
+        <plugin name="RadWorks_QuickOrderShipment::skip_inventory_deduction_for_no_product"
+                type="RadWorks\QuickOrderShipment\Plugin\InventoryShipping\Model\GetItemsToDeductFromShipment\SkipInventoryDeductionForNoProduct"/>
     </type>
 </config>

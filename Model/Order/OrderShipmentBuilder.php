@@ -7,20 +7,26 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\InventorySalesApi\Model\GetSkuFromOrderItemInterface;
 use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Api\Data\ShipmentCommentCreationInterface;
+use Magento\Sales\Api\Data\ShipmentCommentCreationInterfaceFactory;
 use Magento\Sales\Api\Data\ShipmentCreationArgumentsExtensionInterfaceFactory;
 use Magento\Sales\Api\Data\ShipmentCreationArgumentsInterfaceFactory;
 use Magento\Sales\Api\Data\ShipmentItemCreationInterface;
 use Magento\Sales\Api\Data\ShipmentItemCreationInterfaceFactory;
+use Magento\Sales\Api\Data\ShipmentTrackCreationInterface;
+use Magento\Sales\Api\Data\ShipmentTrackCreationInterfaceFactory;
+use Magento\Sales\Api\Data\ShipmentTrackInterface;
 use Magento\Sales\Api\ShipOrderInterface;
 use Magento\Sales\Exception\CouldNotShipException;
 use Magento\Sales\Model\Order\Item;
 use Magento\Sales\Model\Order\Validation\CanShip;
+use RadWorks\QuickOrderShipment\Api\OrderShipmentBuilderInterface;
 use RadWorks\QuickOrderShipment\Model\Inventory\SourceProviderInterface;
 
 /**
  * Manages shipment creation
  */
-class ShipmentManagement implements ShipmentManagementInterface
+class OrderShipmentBuilder implements OrderShipmentBuilderInterface
 {
     /**
      * @var ResourceConnection $connection
@@ -53,9 +59,19 @@ class ShipmentManagement implements ShipmentManagementInterface
     private ShipmentCreationArgumentsInterfaceFactory $shipmentCreationArgumentsFactory;
 
     /**
+     * @var ShipmentCommentCreationInterfaceFactory $shipmentCommentCreationFactory
+     */
+    private ShipmentCommentCreationInterfaceFactory $shipmentCommentCreationFactory;
+
+    /**
      * @var ShipmentItemCreationInterfaceFactory $shipmentItemCreationFactory
      */
     private ShipmentItemCreationInterfaceFactory $shipmentItemCreationFactory;
+
+    /**
+     * @var ShipmentTrackCreationInterfaceFactory $shipmentTrackCreationFactory
+     */
+    private ShipmentTrackCreationInterfaceFactory $shipmentTrackCreationFactory;
 
     /**
      * @var SourceProviderInterface $inventorySourceProvider
@@ -63,11 +79,28 @@ class ShipmentManagement implements ShipmentManagementInterface
     private SourceProviderInterface $inventorySourceProvider;
 
     /**
+     * @var ShipmentCommentCreationInterface|null $commentCreation
+     */
+    private ?ShipmentCommentCreationInterface $commentCreation = null;
+
+    /**
+     * @var ShipmentTrackCreationInterface|null $trackCreation
+     */
+    private ?ShipmentTrackCreationInterface $trackCreation = null;
+
+    private OrderInterface $order;
+
+    /**
+     * @var ShipmentItemCreationInterface[] $itemCreations
+     */
+    private array $itemCreations = [];
+
+    /**
      * Skip deduction of shipment items from source
      *
      * @var bool
      */
-    private bool $skipInventoryCheck = false;
+    private bool $skipInventoryDeduction = false;
 
     /**
      * @param ResourceConnection $connection
@@ -76,7 +109,9 @@ class ShipmentManagement implements ShipmentManagementInterface
      * @param ShipOrderInterface $shipOrder
      * @param ShipmentCreationArgumentsExtensionInterfaceFactory $shipmentCreationArgumentsExtensionFactory
      * @param ShipmentCreationArgumentsInterfaceFactory $shipmentCreationArgumentsFactory
+     * @param ShipmentCommentCreationInterfaceFactory $shipmentCommentCreationFactory
      * @param ShipmentItemCreationInterfaceFactory $shipmentItemCreationFactory
+     * @param ShipmentTrackCreationInterfaceFactory $shipmentTrackCreationFactory
      * @param SourceProviderInterface $inventorySourceProvider
      */
     public function __construct(
@@ -86,7 +121,9 @@ class ShipmentManagement implements ShipmentManagementInterface
         ShipOrderInterface                                 $shipOrder,
         ShipmentCreationArgumentsExtensionInterfaceFactory $shipmentCreationArgumentsExtensionFactory,
         ShipmentCreationArgumentsInterfaceFactory          $shipmentCreationArgumentsFactory,
+        ShipmentCommentCreationInterfaceFactory            $shipmentCommentCreationFactory,
         ShipmentItemCreationInterfaceFactory               $shipmentItemCreationFactory,
+        ShipmentTrackCreationInterfaceFactory              $shipmentTrackCreationFactory,
         SourceProviderInterface                            $inventorySourceProvider,
     )
     {
@@ -96,7 +133,9 @@ class ShipmentManagement implements ShipmentManagementInterface
         $this->shipOrder = $shipOrder;
         $this->shipmentCreationArgumentsExtensionFactory = $shipmentCreationArgumentsExtensionFactory;
         $this->shipmentCreationArgumentsFactory = $shipmentCreationArgumentsFactory;
+        $this->shipmentCommentCreationFactory = $shipmentCommentCreationFactory;
         $this->shipmentItemCreationFactory = $shipmentItemCreationFactory;
+        $this->shipmentTrackCreationFactory = $shipmentTrackCreationFactory;
         $this->inventorySourceProvider = $inventorySourceProvider;
     }
 
@@ -104,35 +143,32 @@ class ShipmentManagement implements ShipmentManagementInterface
      * Create shipments for order
      *
      * @param OrderInterface $order
-     * @param array $constraints
-     * @param bool $skipInventoryCheck
-     * @return OrderInterface
+     * @param array $quantities
+     * @return OrderShipmentBuilder
      * @throws LocalizedException
      */
-    public function shipOrder(OrderInterface $order, array $constraints = [], bool $skipInventoryCheck = true): OrderInterface
+    public function build(OrderInterface $order, array $quantities = []): self
     {
-        $this->skipInventoryCheck = $skipInventoryCheck;
+        $this->reset();
+        $this->order = $order;
         if ($messages = $this->orderValidator->validate($order)) {
             throw new LocalizedException(
                 __('Order cannot be shipped: %1', implode(', ', $messages))
             );
         }
 
-        $shipmentItemCreations = $this->createShipmentItemCreations(
-            $this->inventorySourceProvider->get(
-                $this->getOrderItemsToShip($order),
-                $constraints,
-                $this->skipInventoryCheck
-            )
+        $quantities = $this->inventorySourceProvider->get(
+            $this->getOrderItemsToShip($order),
+            $quantities,
+            $this->skipInventoryDeduction
         );
 
-        if (!$shipmentItemCreations) {
+        ;
+        if (!$this->createShipmentItemCreations($quantities)) {
             throw new LocalizedException(__(('No items to ship.')));
         }
 
-        $this->saveShipmentItemCreations((int)$order->getEntityId(), $shipmentItemCreations);
-
-        return $order;
+        return $this;
     }
 
     /**
@@ -158,6 +194,44 @@ class ShipmentManagement implements ShipmentManagementInterface
     }
 
     /**
+     * Create comment creation model for the shipment
+     *
+     * @param string $comment
+     * @return OrderShipmentBuilder
+     */
+    public function addComment(string $comment): self
+    {
+        if ($comment) {
+            $this->commentCreation = $this->shipmentCommentCreationFactory->create();
+            $this->commentCreation
+                ->setComment($comment)
+                ->setIsVisibleOnFront(false);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Builds track creation model for the shipment
+     *
+     * @param array $track
+     * @return self
+     */
+    public function addTrack(array $track): self
+    {
+        if ($track) {
+            /** @var ShipmentTrackCreationInterface $trackCreation */
+            $this->trackCreation = $this->shipmentTrackCreationFactory->create();
+            $this->trackCreation
+                ->setTrackNumber($track[ShipmentTrackInterface::TRACK_NUMBER])
+                ->setTitle($track[ShipmentTrackInterface::TITLE])
+                ->setCarrierCode($track[ShipmentTrackInterface::CARRIER_CODE]);
+        }
+
+        return $this;
+    }
+
+    /**
      * Create shipments creations models for an order
      *
      * @param array $inventorySources
@@ -165,47 +239,77 @@ class ShipmentManagement implements ShipmentManagementInterface
      */
     private function createShipmentItemCreations(array $inventorySources): array
     {
-        $result = [];
         foreach ($inventorySources as $sourceCode => $sources) {
             foreach ($sources as $source) {
                 /** @var ShipmentItemCreationInterface $shipmentItemCreation */
-                $result[$sourceCode][] = $this->shipmentItemCreationFactory->create()
+                $this->itemCreations[$sourceCode][] = $this->shipmentItemCreationFactory->create()
                     ->setOrderItemId($source[SourceProviderInterface::DATA_FIELD_ITEM_ID])
                     ->setQty($source[SourceProviderInterface::DATA_FIELD_QTY]);
             }
         }
 
-        return $result;
+        return $this->itemCreations;
+    }
+
+    /**
+     * Reset build configuration
+     *
+     * @return OrderShipmentBuilder
+     */
+    private function reset(): self
+    {
+        $this->itemCreations = [];
+        $this->trackCreation = null;
+        $this->commentCreation = null;
+
+        return $this;
     }
 
     /**
      * Create shipments for an order
      *
-     * @param int $orderId
-     * @param array $shipmentItemCreations
      * @return void
      * @throws CouldNotShipException
      */
-    private function saveShipmentItemCreations(int $orderId, array $shipmentItemCreations): void
+    public function save(): void
     {
         $connection = $this->connection->getConnection('sales');
         $connection->beginTransaction();
         try {
             /** @var ShipmentItemCreationInterface[] $items */
-            foreach ($shipmentItemCreations as $sourceCode => $items) {
+            foreach ($this->itemCreations as $sourceCode => $items) {
                 $shipmentCreationArguments = $this->shipmentCreationArgumentsFactory->create();
                 $shipmentCreationArguments->setExtensionAttributes(
                     $this->shipmentCreationArgumentsExtensionFactory->create()
                         ->setSourceCode($sourceCode)
-                        ->setSkipItemsDeduction($this->skipInventoryCheck)
+                        ->setSkipItemsDeduction($this->skipInventoryDeduction)
                 );
-                $this->shipOrder->execute($orderId, $items, arguments: $shipmentCreationArguments);
+                $this->shipOrder->execute(
+                    $this->order->getEntityId(),
+                    $items,
+                    comment: $this->commentCreation ?: null,
+                    tracks: $this->trackCreation ? [$this->trackCreation] : [],
+                    arguments: $shipmentCreationArguments
+                );
             }
 
             $connection->commit();
         } catch (\Throwable $e) {
             $connection->rollBack();
-            throw new CouldNotShipException(__('Could not save a shipment, see error log for details'));
+            throw new CouldNotShipException(__('Could not save a shipment, see error log for details'), $e);
         }
+    }
+
+    /**
+     * Set flag to skip validation
+     *
+     * @param bool $skipInventoryDeduction
+     * @return OrderShipmentBuilder
+     */
+    public function skipInventoryDeduction(bool $skipInventoryDeduction): self
+    {
+        $this->skipInventoryDeduction = $skipInventoryDeduction;
+
+        return $this;
     }
 }

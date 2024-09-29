@@ -6,7 +6,10 @@
             <action name="rad_works_quick_ship">
                 <settings>
                     <confirm>
-                        <message translate="true">Are you sure you want to automatically create shipment(s) for the selected orders?</message>
+                        <message translate="true"><![CDATA[
+Are you sure you want to automatically create shipment(s) for the selected orders?
+The shipment will be created even if the shipped product is unavailable or has insufficient quantity.
+]]></message>
                         <title translate="true">Create shipments</title>
                     </confirm>
                     <url path="sales/order/quickShip"/>

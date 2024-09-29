@@ -14,7 +14,7 @@ use RadWorks\QuickOrderShipment\Model\Inventory\SourceProviderInterface;
 /**
  * Skips shipment item deduction if the product is not found.
  */
-class SkipShipmentItemsDeductionForNoProduct
+class SkipInventoryDeductionForNoProduct
 {
     /**
      * @var DefaultSourceProviderInterface $defaultSourceProvider

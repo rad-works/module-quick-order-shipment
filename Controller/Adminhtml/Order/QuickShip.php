@@ -13,7 +13,7 @@ use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
 use Magento\Shipping\Controller\Adminhtml\Order\Shipment\Save;
 use Magento\Ui\Component\MassAction\FilterFactory;
-use RadWorks\QuickOrderShipment\Model\Order\ShipmentManagementInterface;
+use RadWorks\QuickOrderShipment\Api\OrderShipmentBuilderInterface;
 
 /**
  * Force creation of shipments of the selected orders
@@ -38,9 +38,9 @@ class QuickShip extends Action implements HttpPostActionInterface
     private FilterFactory $filterFactory;
 
     /**
-     * @var ShipmentManagementInterface $shipmentManagement
+     * @var OrderShipmentBuilderInterface $shipmentBuilder
      */
-    private ShipmentManagementInterface $shipmentManagement;
+    private OrderShipmentBuilderInterface $shipmentBuilder;
 
     /**
      * Constructor.
@@ -48,18 +48,18 @@ class QuickShip extends Action implements HttpPostActionInterface
      * @param Context $context
      * @param CollectionFactory $collectionFactory
      * @param FilterFactory $filterFactory
-     * @param ShipmentManagementInterface $shipmentManagement
+     * @param OrderShipmentBuilderInterface $shipmentBuilder
      */
     public function __construct(
         Context                     $context,
         CollectionFactory           $collectionFactory,
         FilterFactory               $filterFactory,
-        ShipmentManagementInterface $shipmentManagement
+        OrderShipmentBuilderInterface $shipmentBuilder
     )
     {
         $this->collectionFactory = $collectionFactory;
         $this->filterFactory = $filterFactory;
-        $this->shipmentManagement = $shipmentManagement;
+        $this->shipmentBuilder = $shipmentBuilder;
         parent::__construct($context);
     }
 
@@ -83,14 +83,17 @@ class QuickShip extends Action implements HttpPostActionInterface
             }
 
             try {
-                $this->shipmentManagement->shipOrder($order, skipInventoryCheck: true);
+                $this->shipmentBuilder
+                    ->skipInventoryDeduction(true)
+                    ->build($order)
+                    ->save();
                 $shipped[] = $incrementId;
             } catch (LocalizedException $e) {
                 $this->messageManager->addErrorMessage(
                     __('Order #%1: shipment was not created - "%2".', $incrementId, $e->getMessage())
                 );
             } catch (\Throwable) {
-                $this->messageManager->addErrorMessage(__('Order #%1: shipments were not created.', $incrementId));
+                $this->messageManager->addErrorMessage(__('Order #%1: no shipment created.', $incrementId));
             }
         }
 

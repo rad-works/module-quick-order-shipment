@@ -25,10 +25,10 @@ interface SourceProviderInterface
      * Get all available inventory sources for order items
      *
      * @param Item[] $orderItems
-     * @param array $constraints
+     * @param array $skus
      * @param bool $forceEmptySource
      * @return array
      * @throws LocalizedException
      */
-    public function get(array $orderItems, array $constraints = [], bool $forceEmptySource = true): array;
+    public function get(array $orderItems, array $skus = [], bool $forceEmptySource = false): array;
 }

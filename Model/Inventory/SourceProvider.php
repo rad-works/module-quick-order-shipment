@@ -50,24 +50,26 @@ class SourceProvider implements SourceProviderInterface
      * Get all available inventory sources for order items
      *
      * @param Item[] $orderItems
-     * @param array $constraints
+     * @param array $skus
      * @param bool $forceEmptySource
      * @return array
      * @throws LocalizedException
      */
-    public function get(array $orderItems, array $constraints = [], bool $forceEmptySource = true): array
+    public function get(array $orderItems, array $skus = [], bool $forceEmptySource = true): array
     {
         $result = [];
         foreach ($orderItems as $orderItem) {
             $sku = $this->getSkuFromOrderItem->execute($orderItem);
-            $partialQty = $constraints[$sku] ?? null;
-            if ($partialQty && !array_key_exists($sku, $constraints)) {
+            if ($skus && !array_key_exists($sku, $skus)) {
                 continue;
             }
 
+            $qtyToShip = (float)$orderItem->getSimpleQtyToShip();
+            $customQty = $skus[$sku] ?? $qtyToShip;
+            $qtyToShip = min($customQty, $qtyToShip);
             $sources = [];
             $defaultSource = [
-                self::DATA_FIELD_QTY => $partialQty ?: (float)$orderItem->getSimpleQtyToShip(),
+                self::DATA_FIELD_QTY => $qtyToShip,
                 self::DATA_FIELD_SKU => $sku,
                 self::DATA_FIELD_ITEM_ID => $orderItem->getItemId(),
                 self::DATA_FIELD_CODE => self::NO_SOURCE_CODE
@@ -78,14 +80,20 @@ class SourceProvider implements SourceProviderInterface
                     sku: $defaultSource[self::DATA_FIELD_SKU],
                     qty: $defaultSource[self::DATA_FIELD_QTY]
                 );
-
+                $qtyToShipSources = array_sum(array_column($sources, self::DATA_FIELD_QTY));
+                if ($forceEmptySource && $qtyToShipSources < $qtyToShip) {
+                    $sources = array_filter($sources, fn($source) => $source[self::DATA_FIELD_QTY]);
+                    $sources[self::NO_SOURCE_CODE] = array_merge(
+                        $defaultSource, [self::DATA_FIELD_QTY => $qtyToShip - $qtyToShipSources]
+                    );
+                }
             } catch (NoSuchEntityException $e) {
                 if (!$forceEmptySource) {
                     throw $e;
                 }
             }
 
-            if  (!$sources && $forceEmptySource) {
+            if ($forceEmptySource && !$sources) {
                 $sources = [$defaultSource];
             }
 
