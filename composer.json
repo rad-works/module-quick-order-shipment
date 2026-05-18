@@ -1,10 +1,10 @@
 {
   "name": "rad-works/module-quick-order-shipment",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "",
   "type": "magento2-module",
   "require": {
-    "php": "~8.1.0"
+    "php": ">=8.1.0"
   },
   "license": [
     "OSL-3.0",
